@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 5,
+  "id": "com.cutline.premiere",
+  "name": "CUTLINE",
+  "version": "0.1.0",
+  "main": "index.html",
+  "host": {
+    "app": "premierepro",
+    "minVersion": "26.2.0"
+  },
+  "entrypoints": [
+    {
+      "type": "panel",
+      "id": "cutline.panel",
+      "label": {
+        "default": "CUTLINE"
+      },
+      "minimumSize": {
+        "width": 280,
+        "height": 420
+      },
+      "preferredDockedSize": {
+        "width": 320,
+        "height": 560
+      },
+      "preferredFloatingSize": {
+        "width": 380,
+        "height": 640
+      }
+    }
+  ],
+  "requiredPermissions": {
+    "localFileSystem": "fullAccess",
+    "clipboard": "readAndWrite",
+    "network": {
+      "domains": "all"
+    }
+  }
+}
