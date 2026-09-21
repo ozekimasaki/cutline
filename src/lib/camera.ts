@@ -47,6 +47,8 @@ export function cameraSignals(
     clip.role === "backchannel" || reactionStrength >= 0.5
       ? Math.max(0.7, reactionStrength + expressionBoost)
       : 0.16;
+  const wideReset =
+    jump || clip.role === "pause" || sameCameraMs >= FATIGUE_MS ? 0.82 : 0.22;
   return {
     speakerCamera,
     speakerValue: clip.role === "content" ? 0.84 : 0.62,
