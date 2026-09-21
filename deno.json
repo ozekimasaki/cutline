@@ -1,0 +1,24 @@
+{
+  "name": "cutline",
+  "version": "0.1.0",
+  "exports": "./src-deno/main.ts",
+  "compilerOptions": {
+    "lib": ["deno.window"]
+  },
+  "tasks": {
+    "desktop": "deno desktop --hmr -A --backend webview src-deno/main.ts",
+    "desktop:build": "deno desktop -A --backend webview src-deno/main.ts"
+  },
+  "desktop": {
+    "app": {
+      "name": "CUTLINE",
+      "identifier": "com.cutline.desktop"
+    },
+    "backend": "webview",
+    "output": {
+      "macos": "./dist-desktop/CUTLINE.app",
+      "windows": "./dist-desktop/CUTLINE",
+      "linux": "./dist-desktop/cutline.AppImage"
+    }
+  }
+}
