@@ -107,6 +107,14 @@ deno task desktop:build
 
 ウィンドウは CUTLINE、1280×800。認証は付けません。
 
+## リリース
+
+`v*.*.*` タグを push すると、macOS / Windows / Linux のデスクトップインストーラ（`deno task desktop:build`）が GitHub Release に載ります。
+
+```bash
+git tag v0.1.0 && git push origin v0.1.0
+```
+
 ## モデル接続
 
 | 役割 | 経路 | 環境変数 |

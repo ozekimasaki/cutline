@@ -1,0 +1,65 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "リリースタグ（例: v0.1.0）。空なら github.ref_name"
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - run: deno task desktop:build
+      - name: Pack
+        shell: bash
+        run: |
+          mkdir -p release
+          case "${{ runner.os }}" in
+            Linux)
+              cp dist-desktop/cutline.AppImage release/cutline.AppImage
+              ;;
+            macOS)
+              ditto -c -k --keepParent dist-desktop/CUTLINE.app release/CUTLINE-macos.zip
+              ;;
+            Windows)
+              powershell.exe -NoProfile -Command "Compress-Archive -Path dist-desktop\\CUTLINE -DestinationPath release\\CUTLINE-windows.zip"
+              ;;
+          esac
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ runner.os }}
+          path: release/*
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: desktop-*
+          merge-multiple: true
+          path: release
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.version || github.ref_name }}
+          target_commitish: ${{ github.sha }}
+          files: release/**
+          fail_on_unmatched_files: true
