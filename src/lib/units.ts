@@ -3,7 +3,7 @@ import type { EditUnit, TranscriptCue } from "./types";
 
 const PAUSE_GAP_MS = 250;
 
-const FILLER_PREFIX = /^(えっと|えっと|えー+|うーん|あのー?|まあ)[、,，]?/;
+const FILLER_PREFIX = /^(えーっと|えっと|えー+|うーん|あのー?|まあ)[、,，]?/;
 const SENTENCE_PUNCT = /[。．.！？!?]+/g;
 const ELLIPSIS = /(?:……+|…+|\.{3,})/g;
 const COMMA_THEN_BOUNDARY =
