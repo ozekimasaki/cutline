@@ -28,6 +28,10 @@ export function jevEnv(): {
   const cloudflareToken = process.env.CLOUDFLARE_API_TOKEN?.trim() || "";
   const accountId =
     process.env.CLOUDFLARE_ACCOUNT_ID?.trim() || DEFAULT_CF_ACCOUNT;
+  const live =
+    preferred === "cloudflare"
+      ? cloudflareToken.length > 0
+      : vercelKey.length > 0;
   return { preferred, live, vercelKey, cloudflareToken, accountId };
 }
 
