@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <title>CUTLINE</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header>
+      <p class="kicker">CUTLINE</p>
+      <h1>AI Edit → Premiere</h1>
+      <p class="lede">
+        Timeline IR の KEEP/CUT をシーケンスに載せ、確認待ちだけ人手に残します。
+      </p>
+    </header>
+    <section class="actions">
+      <button id="import-edit" type="button">Import CUTLINE Edit</button>
+      <button id="apply-edit" type="button">Apply AI Edit</button>
+      <button id="review-decisions" type="button">Review AI Decisions</button>
+      <button id="export-final" type="button">Export Final</button>
+    </section>
+    <p id="status" class="status">project.json か video-final.fcpxml を読み込んでください。</p>
+    <section>
+      <h2>Review Queue</h2>
+      <ul id="review-list" class="review"></ul>
+    </section>
+    <script src="main.js"></script>
+  </body>
+</html>
