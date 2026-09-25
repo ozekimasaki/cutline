@@ -1,11 +1,15 @@
 import type { EditUnit, JevSignals, Perception, TranscriptCue } from "./types";
 import { sampleDurationMs } from "./ffmpeg";
+import { isShortTalkFile, shortTalkPerception } from "./short-talk";
 
 export function mockPerception(input: {
   durationMs: number;
   fileName: string;
   brief: string;
 }): Perception {
+  if (isShortTalkFile(input.fileName)) {
+    return shortTalkPerception(input.durationMs);
+  }
   return {
     title: input.fileName.replace(/\.[^.]+$/, "") || "無題の素材",
     durationMs: input.durationMs > 0 ? input.durationMs : sampleDurationMs(),

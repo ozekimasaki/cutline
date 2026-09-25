@@ -1,4 +1,4 @@
-import { copyFile, mkdir } from "node:fs/promises";
+import { access, copyFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
 import { randomUUID } from "node:crypto";
@@ -12,6 +12,10 @@ import {
   type JobMediaSource,
 } from "@/lib/ingest";
 import { parseProfile, startJob } from "@/lib/pipeline";
+import {
+  SHORT_TALK_DURATION_MS,
+  SHORT_TALK_FILE,
+} from "@/lib/short-talk";
 import { parseSpeakerCountHint } from "@/lib/speaker";
 import { registerMediaPath, saveMediaFile } from "@/lib/store";
 import { SAMPLE_DURATION_MS, resolveTargetDurationMs } from "@/lib/target-duration";
@@ -40,6 +44,63 @@ export async function createJobFromForm(form: FormData): Promise<
       form.get("speakerCount") ?? form.get("speaker_count"),
     );
     const channelProfile = channelProfileFromForm(form);
+
+    const sampleId = String(form.get("sample") ?? "");
+    if (useSample && sampleId === "short-talk") {
+      const source = path.join(
+        process.cwd(),
+        "samples",
+        "short-talk",
+        "dialogue.mp4",
+      );
+      try {
+        await access(source);
+      } catch {
+        return {
+          ok: false,
+          error: "短い対談のサンプルがありません。",
+          status: 500,
+        };
+      }
+      const mediaId = randomUUID();
+      const dest = path.join(os.tmpdir(), "cutline", "media", `${mediaId}.mp4`);
+      await mkdir(path.dirname(dest), { recursive: true });
+      await copyFile(source, dest);
+      registerMediaPath(mediaId, dest);
+      const durationMs = await probeDurationMs(dest).catch(
+        () => SHORT_TALK_DURATION_MS,
+      );
+      const cameras: CameraAngle[] = [
+        {
+          id: "A",
+          mediaId,
+          fileName: SHORT_TALK_FILE,
+          label: "CAM A",
+        },
+      ];
+      const sources: JobMediaSource[] = [
+        {
+          filePath: dest,
+          fileName: SHORT_TALK_FILE,
+          mediaId,
+          role: "cam_a",
+        },
+      ];
+      const job = startJob({
+        brief,
+        profile,
+        targetDurationMs: resolveTargetDurationMs(requestedTargetMs, durationMs),
+        fileName: SHORT_TALK_FILE,
+        filePath: dest,
+        mediaId,
+        durationMs,
+        cameras,
+        sources,
+        channelProfile,
+        speakerCount,
+      });
+      return { ok: true, job };
+    }
 
     if (useSample) {
       const samples = await ensureSampleCameras();
