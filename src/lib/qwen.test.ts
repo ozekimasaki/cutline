@@ -18,6 +18,7 @@ import {
   perceiveUnitStates,
   perceiveVideo,
 } from "./qwen";
+import { compatibleModeBase } from "./maas";
 import { mockPerception, mockTranscript } from "./sample";
 import { buildEditUnits } from "./units";
 import { sliceConversationWindows } from "./windows";
@@ -25,14 +26,14 @@ import type { EditUnit } from "./types";
 
 const originalFetch = globalThis.fetch;
 const originalKey = process.env.DASHSCOPE_API_KEY;
+const originalBase = process.env.DASHSCOPE_BASE_URL;
+const originalOmni = process.env.QWEN_OMNI_MODEL;
 
 afterEach(() => {
   globalThis.fetch = originalFetch;
-  if (originalKey === undefined) {
-    delete process.env.DASHSCOPE_API_KEY;
-  } else {
-    process.env.DASHSCOPE_API_KEY = originalKey;
-  }
+  restoreEnv("DASHSCOPE_API_KEY", originalKey);
+  restoreEnv("DASHSCOPE_BASE_URL", originalBase);
+  restoreEnv("QWEN_OMNI_MODEL", originalOmni);
   clearOmniSessions();
 });
 
@@ -251,9 +252,106 @@ describe("Omni unit Edit / Visual State", () => {
   });
 });
 
+const MAAS_API = "https://workspace.ap-southeast-1.maas.aliyuncs.com/api/v1";
+const MAAS_COMPATIBLE =
+  "https://workspace.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1";
+
+describe("MaaS Omni endpoints", () => {
+  it("maps /api/v1 to compatible-mode and does not call that host's chat 404", async () => {
+    assert.equal(compatibleModeBase(MAAS_API), MAAS_COMPATIBLE);
+    process.env.DASHSCOPE_API_KEY = "test-key";
+    process.env.DASHSCOPE_BASE_URL = MAAS_API;
+    process.env.QWEN_OMNI_MODEL = "qwen3.8-omni-flash";
+    const dir = mkdtempSync(path.join(os.tmpdir(), "cutline-maas-"));
+    const filePath = path.join(dir, "clip.bin");
+    writeFileSync(filePath, Buffer.from("video-bytes"));
+    const calls: Array<{ url: string; body: Record<string, unknown> }> = [];
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      const body = JSON.parse(String(init?.body ?? "{}")) as Record<
+        string,
+        unknown
+      >;
+      calls.push({ url, body });
+      if (url.endsWith("/responses")) {
+        return new Response("", { status: 200 });
+      }
+      const payload = JSON.stringify({
+        choices: [{ delta: { content: '{"title":"対談","summary":"全体","storyline":"s","topics":["開始"],"language":"ja"}' } }],
+      });
+      return new Response(`data: ${payload}\n\ndata: [DONE]\n\n`, {
+        status: 200,
+        headers: { "Content-Type": "text/event-stream" },
+      });
+    }) as typeof fetch;
+
+    const perceived = await perceiveVideo({
+      filePath,
+      fileName: "clip.bin",
+      durationMs: 24_000,
+      brief: "残す",
+    });
+    assert.equal(perceived.perception.source, "live");
+    assert.equal(calls.length, 2);
+    assert.equal(calls[0]?.url, `${MAAS_COMPATIBLE}/responses`);
+    assert.equal(calls[1]?.url, `${MAAS_COMPATIBLE}/chat/completions`);
+    assert.equal(
+      calls.some((call) => call.url.includes("/api/v1/")),
+      false,
+    );
+    assert.equal(calls[0]?.body.model, "qwen3.8-omni-flash");
+    const responsesInput = JSON.stringify(calls[0]?.body.input ?? []);
+    assert.match(responsesInput, /input_text/);
+    assert.match(responsesInput, /input_video/);
+    assert.equal(calls[1]?.body.stream, true);
+    assert.equal(calls[1]?.body.model, "qwen3.8-omni-flash");
+    const chat = JSON.stringify(calls[1]?.body.messages ?? []);
+    assert.match(chat, /"type":"text"/);
+    assert.match(chat, /video_url/);
+  });
+
+  it("does not mock when compatible-mode chat completions is a 404", async () => {
+    process.env.DASHSCOPE_API_KEY = "test-key";
+    process.env.DASHSCOPE_BASE_URL = MAAS_API;
+    process.env.QWEN_OMNI_MODEL = "qwen3.8-omni-flash";
+    const dir = mkdtempSync(path.join(os.tmpdir(), "cutline-maas-404-"));
+    const filePath = path.join(dir, "clip.bin");
+    writeFileSync(filePath, Buffer.from("video-bytes"));
+    const calls: string[] = [];
+    globalThis.fetch = (async (input: RequestInfo | URL) => {
+      const url = String(input);
+      calls.push(url);
+      if (url.endsWith("/responses")) {
+        return new Response("", { status: 200 });
+      }
+      return new Response(JSON.stringify({ message: "unknown" }), {
+        status: 404,
+        headers: { "Content-Type": "application/json" },
+      });
+    }) as typeof fetch;
+    await assert.rejects(
+      () =>
+        perceiveVideo({
+          filePath,
+          fileName: "clip.bin",
+          durationMs: 24_000,
+          brief: "残す",
+        }),
+      /Chat Completions 404/,
+    );
+    assert.equal(
+      calls.some((url) => url.includes("/api/v1/chat/completions")),
+      false,
+    );
+    assert.equal(calls.at(-1), `${MAAS_COMPATIBLE}/chat/completions`);
+  });
+});
+
 describe("Omni Responses session cache", () => {
   it("reuses previous_response_id for PASS 2 windows and unit state", async () => {
     process.env.DASHSCOPE_API_KEY = "test-key";
+    process.env.DASHSCOPE_BASE_URL =
+      "https://dashscope-intl.aliyuncs.com/compatible-mode/v1";
     const dir = mkdtempSync(path.join(os.tmpdir(), "cutline-omni-"));
     const filePath = path.join(dir, "clip.bin");
     writeFileSync(filePath, Buffer.from("video-bytes"));
@@ -440,3 +538,11 @@ describe("mockOmniUnitState", () => {
     assert.ok(!("camera" in state.visual));
   });
 });
+
+function restoreEnv(name: string, value: string | undefined) {
+  if (value == null) {
+    delete process.env[name];
+    return;
+  }
+  process.env[name] = value;
+}
