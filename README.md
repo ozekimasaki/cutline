@@ -124,3 +124,5 @@ git tag v0.1.0 && git push origin v0.1.0
 | 信号（Jev） | Vercel AI Gateway `typesafe-ai/jev` または Cloudflare Workers AI `typesafe/jev` | `AI_GATEWAY_API_KEY` / `CLOUDFLARE_API_TOKEN` |
 
 未設定時はモックに落ちます。Cloudflare アカウント既定は `6f2f1ee8a618e7fcb9f6737c3a84c526` です。`JEV_PROVIDER=cloudflare` で Cloudflare を優先できます。
+
+サンプル音声: VOICEVOX:ずんだもん / VOICEVOX:四国めたん
