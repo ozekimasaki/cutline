@@ -1,0 +1,68 @@
+name: assemble-short-talk-parts
+on:
+  push:
+    branches: [main]
+    paths:
+      - "samples/short-talk/_parts/**"
+      - ".github/workflows/assemble-short-talk-parts.yml"
+  workflow_dispatch:
+concurrency:
+  group: assemble-short-talk-parts
+  cancel-in-progress: false
+permissions:
+  contents: write
+jobs:
+  assemble:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Join verified slices
+        run: |
+          python3 << 'PY'
+          import hashlib, pathlib, subprocess, sys
+          root = pathlib.Path("samples/short-talk")
+          parts = root / "_parts"
+          expect = {
+              "dialogue.wav.b64.15": "b1cd5fb6529611b94b19dad74815b662739753a0",
+              "dialogue.wav.b64.16": "9dac8ff471955573abe26766a98b92715587c1f3",
+              "dialogue.wav.b64.17": "c90868d192c5bf4cfddf9149251b773bc5640b65",
+              "dialogue.wav.b64.18": "8a59e09432b49280ce5a95b02e36c95ce64b9f8c",
+              "dialogue.wav.b64.19": "ebe81c1ecd939fcb0f4362a04b56eb4ed3e7da70",
+              "dialogue.wav.b64.20": "763289702e93c11605fddfd4c6d7e07ce304f2d6",
+          }
+          changed = False
+          for name, want in expect.items():
+              d = parts / name
+              chunks = sorted(d.glob("c[0-9][0-9]")) if d.is_dir() else []
+              if len(chunks) != 24:
+                  print(f"skip {name} chunks={len(chunks)}")
+                  continue
+              data = b"".join(p.read_bytes() for p in chunks)
+              blob = hashlib.sha1(b"blob %d\0" % len(data) + data).hexdigest()
+              if len(data) != 96000 or blob != want:
+                  print(f"BAD {name} len={len(data)} blob={blob}")
+                  continue
+              dest = root / name
+              dest.write_bytes(data)
+              for p in chunks:
+                  p.unlink()
+              changed = True
+              print(f"assembled {name} {blob}")
+          if not changed:
+              sys.exit(0)
+          subprocess.check_call(["git", "config", "user.name", "MasakiOzeki"])
+          subprocess.check_call(["git", "config", "user.email", "mai_mei_moi@proton.me"])
+          subprocess.check_call(["git", "add", "-A", "--", "samples/short-talk"])
+          diff = subprocess.run(["git", "diff", "--cached", "--quiet"])
+          if diff.returncode == 0:
+              sys.exit(0)
+          subprocess.check_call(["git", "commit", "-m", "feat(sample): 短い対談の音声断片を載せる"])
+          for _ in range(8):
+              pull = subprocess.run(["git", "pull", "--rebase", "origin", "main"])
+              if pull.returncode != 0:
+                  continue
+              push = subprocess.run(["git", "push", "origin", "HEAD:main"])
+              if push.returncode == 0:
+                  sys.exit(0)
+          sys.exit(1)
+          PY
