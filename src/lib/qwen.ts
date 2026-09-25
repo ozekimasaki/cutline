@@ -4,6 +4,7 @@ import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
 import { omniModelId, qwenEnv } from "./env";
+import { compatibleModeBase, isRouteMismatchError } from "./maas";
 import { asBoolean, asNumber, asString, extractJsonObject } from "./json";
 import { mockPerception } from "./sample";
 import { parseOmniBrollCues } from "./broll";
@@ -119,6 +120,9 @@ export async function perceiveVideo(input: {
     }
     return { perception, notes };
   } catch (error) {
+    if (isRouteMismatchError(error)) {
+      throw error;
+    }
     notes.push(
       `Qwen の呼び出しに失敗したためモック知覚に切り替えました: ${errorMessage(error)}`,
     );
@@ -174,6 +178,9 @@ export async function analyzeConversationWindow(input: {
       notes,
     };
   } catch (error) {
+    if (isRouteMismatchError(error)) {
+      throw error;
+    }
     notes.push(
       `PASS 2 Omni に失敗したためモック会話解析に切り替えました: ${errorMessage(error)}`,
     );
@@ -205,6 +212,9 @@ export async function watchEditedVideo(input: {
     });
     return { watch: normalizeWatchQa(extractJsonObject(raw), fallback), notes };
   } catch (error) {
+    if (isRouteMismatchError(error)) {
+      throw error;
+    }
     notes.push(
       `Omni 再視聴に失敗したためモックに切り替えました: ${errorMessage(error)}`,
     );
@@ -250,6 +260,9 @@ export async function perceiveUnitStates(input: {
       notes,
     };
   } catch (error) {
+    if (isRouteMismatchError(error)) {
+      throw error;
+    }
     notes.push(
       `単位 State の取得に失敗したためモックに切り替えました: ${errorMessage(error)}`,
     );
@@ -533,6 +546,7 @@ async function omniText(input: {
   notes: string[];
 }): Promise<string> {
   const env = qwenEnv();
+  const baseUrl = compatibleModeBase(env.baseUrl);
   const session = sessions.get(input.mediaKey) ?? { mediaKey: input.mediaKey };
   let videoUrl = session.videoUrl;
 
@@ -545,7 +559,7 @@ async function omniText(input: {
       videoUrl = await toInlineVideoUrl(input.filePath, input.notes);
     }
     return perceiveViaResponses({
-      baseUrl: env.baseUrl,
+      baseUrl,
       apiKey: env.apiKey,
       prompt: input.prompt,
       videoUrl: reuse ? undefined : videoUrl,
@@ -593,7 +607,7 @@ async function omniText(input: {
       videoUrl = await toInlineVideoUrl(input.filePath, input.notes);
     }
     const text = await perceiveViaChat(
-      env.baseUrl,
+      baseUrl,
       env.apiKey,
       input.prompt,
       videoUrl,
