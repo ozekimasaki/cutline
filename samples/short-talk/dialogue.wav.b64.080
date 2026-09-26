@@ -1,1 +1,1 @@
-file:///tmp/080-content-only.txt
+@file(/tmp/080-content-only.txt)
