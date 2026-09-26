@@ -11,6 +11,7 @@ import {
   roleFromCameraId,
   type JobMediaSource,
 } from "@/lib/ingest";
+import { ensureShortTalkMedia } from "@/lib/materialize-short-talk";
 import { parseProfile, startJob } from "@/lib/pipeline";
 import {
   SHORT_TALK_DURATION_MS,
@@ -47,6 +48,7 @@ export async function createJobFromForm(form: FormData): Promise<
 
     const sampleId = String(form.get("sample") ?? "");
     if (useSample && sampleId === "short-talk") {
+      await ensureShortTalkMedia();
       const source = path.join(
         process.cwd(),
         "samples",
