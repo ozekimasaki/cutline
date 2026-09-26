@@ -4,6 +4,7 @@ import { stat } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 import { describe, it } from "node:test";
+import { ensureShortTalkMedia } from "./materialize-short-talk";
 import { buildEditUnits } from "./units";
 import { mockTranscript } from "./sample";
 import {
@@ -37,6 +38,7 @@ describe("short talk sample", () => {
   });
 
   it("ships a wav and an mp4 of the same dialogue", async () => {
+    await ensureShortTalkMedia();
     const dir = path.join(process.cwd(), "samples", "short-talk");
     const wav = path.join(dir, "dialogue.wav");
     const mp4 = path.join(dir, "dialogue.mp4");
