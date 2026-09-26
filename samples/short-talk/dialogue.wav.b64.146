@@ -1,1 +1,1 @@
-FROM_FILE
+@/tmp/out_invoke.json:content
